@@ -1,7 +1,21 @@
 name: ACTransmitter
 version: ${project.version}
-api-version: 1.13
+# Matches the spigot-api this is built against. It previously declared 1.13,
+# three API generations behind the build.
+api-version: '1.16'
 main: com.nort721.transmitter.ACTransmitter
 author: Nort721
-description: An anticheat data transmision unit
+description: An anticheat data transmission unit
 depend: [ ProtocolLib ]
+
+commands:
+  actransmitter:
+    description: Inspect CloudAC status and toggle punishment.
+    usage: /<command> <status|punish on|punish off>
+    aliases: [ actr, cloudac ]
+    permission: actransmitter.admin
+
+permissions:
+  actransmitter.admin:
+    description: Allows inspecting status and toggling punishment.
+    default: op
