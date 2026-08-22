@@ -86,8 +86,26 @@ jobs:
       # than the work it moved without anyone noticing.
       - name: measure
         run: |
+          set -euo pipefail
           javac --release 8 -d /tmp/bench bench/SenderBenchmark.java
-          java -cp /tmp/bench SenderBenchmark | tee /tmp/bench.txt
+          # Redirect rather than pipe into tee. Without pipefail a crashed JVM
+          # exits through tee's status and the step passes.
+          java -cp /tmp/bench SenderBenchmark > /tmp/bench.txt
+          cat /tmp/bench.txt
 
       - name: fail if the hot path regresses past 1000 ns per packet
-        run: awk '/queued/ {if ($(NF-3)+0 > 1000) {print "REGRESSION: " $0; exit 1}}' /tmp/bench.txt
+        run: |
+          set -euo pipefail
+          ns=$(sed -n 's/^hotpath_ns=//p' /tmp/bench.txt)
+          # An absent value fails the step. Reading a column out of the table
+          # is what this used to do, it silently read the wrong field, and a
+          # regression of any size passed.
+          if [ -z "$ns" ]; then
+            echo "benchmark did not emit hotpath_ns"
+            exit 1
+          fi
+          echo "hot path: ${ns}ns (budget 1000ns)"
+          if [ "$ns" -gt 1000 ]; then
+            echo "REGRESSION: hot path is ${ns}ns"
+            exit 1
+          fi

@@ -62,7 +62,7 @@ public final class SenderBenchmark {
 
         double perPacket = benchConnectPerPacket(port);
         benchPersistent(port);
-        benchQueued();
+        double hotPath = benchQueued();
 
         System.out.println();
         System.out.printf("At 20 packets per second per player, the original design costs %.3f%% of a%n",
@@ -70,6 +70,11 @@ public final class SenderBenchmark {
         System.out.printf("thread per player, so about %d players saturate one Netty worker on loopback.%n",
                 (long) (1e9 / (perPacket * 20)));
         System.out.println("Across a network the first row is bound by round-trip time and the third is not.");
+
+        // Machine-readable, for the CI regression gate. Parsing a column out of
+        // the table above is what the gate used to do, and it silently read the
+        // wrong field, so a regression of any size passed.
+        System.out.printf("hotpath_ns=%.0f%n", hotPath);
         System.exit(0);
     }
 
@@ -134,7 +139,7 @@ public final class SenderBenchmark {
      * off-thread. This is the number that matters, because it is the only work
      * the game server performs on the hot path.
      */
-    private static void benchQueued() {
+    private static double benchQueued() {
         BlockingQueue<String> queue = new ArrayBlockingQueue<>(16384);
         for (int i = 0; i < WARMUP; i++) {
             queue.poll();
@@ -148,6 +153,7 @@ public final class SenderBenchmark {
         double ns = (double) (System.nanoTime() - start) / ITERATIONS;
         System.out.printf("%-46s %12.0f %12s %12s%n",
                 "bounded queue offer (current, queued)", ns, "0", "0");
+        return ns;
     }
 
     private static int startStandInServer() throws IOException {
