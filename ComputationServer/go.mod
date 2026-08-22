@@ -1,3 +1,3 @@
-module CloudAC/ComputationServer
+module github.com/0xntpower/CloudAC/ComputationServer
 
-go 1.17
+go 1.26.6

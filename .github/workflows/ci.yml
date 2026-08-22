@@ -1,0 +1,111 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  go:
+    name: ComputationServer
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ComputationServer
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.6'
+          cache-dependency-path: ComputationServer/go.mod
+
+      - name: gofmt
+        run: test -z "$(gofmt -l .)"
+
+      - name: vet
+        run: go vet ./...
+
+      - name: test
+        run: go test ./...
+
+      - name: race
+        run: go test -race ./...
+
+      # The fuzzer is the highest-value item in this pipeline. Static analysis
+      # found none of the defects this project shipped: go vet and staticcheck
+      # both exited clean against the original code, because the central defect
+      # was a value-receiver mutation discarded on return, which is legal Go.
+      # The fuzzer crashed the original parser in under a second.
+      - name: fuzz the wire parser
+        run: go test -run '^$' -fuzz FuzzParsePacket -fuzztime 60s ./sys/
+
+      - name: fuzz the framing
+        run: go test -run '^$' -fuzz FuzzDecodeFrame -fuzztime 30s ./sys/
+
+      - name: govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+  java:
+    name: ACTransmitter
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ACTransmitter
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: maven
+
+      - name: verify the vendored jar has not changed
+        working-directory: .
+        run: sha256sum -c <(grep -o '^\s*[0-9a-f]\{64\}\s\+\S*' CHECKSUMS.txt | sed 's/^\s*//')
+
+      - name: package
+        run: mvn -B package
+
+  benchmark:
+    name: transmitter hot path
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+
+      # This project exists to demonstrate a performance claim, so the claim is
+      # measured on every push. It previously had no benchmark of any kind,
+      # which is why the transport could cost three orders of magnitude more
+      # than the work it moved without anyone noticing.
+      - name: measure
+        run: |
+          set -euo pipefail
+          javac --release 8 -d /tmp/bench bench/SenderBenchmark.java
+          # Redirect rather than pipe into tee. Without pipefail a crashed JVM
+          # exits through tee's status and the step passes.
+          java -cp /tmp/bench SenderBenchmark > /tmp/bench.txt
+          cat /tmp/bench.txt
+
+      - name: fail if the hot path regresses past 1000 ns per packet
+        run: |
+          set -euo pipefail
+          ns=$(sed -n 's/^hotpath_ns=//p' /tmp/bench.txt)
+          # An absent value fails the step. Reading a column out of the table
+          # is what this used to do, it silently read the wrong field, and a
+          # regression of any size passed.
+          if [ -z "$ns" ]; then
+            echo "benchmark did not emit hotpath_ns"
+            exit 1
+          fi
+          echo "hot path: ${ns}ns (budget 1000ns)"
+          if [ "$ns" -gt 1000 ]; then
+            echo "REGRESSION: hot path is ${ns}ns"
+            exit 1
+          fi

@@ -1,0 +1,30 @@
+# Vendored binary checksums
+
+Run `sha256sum -c CHECKSUMS.txt` from the repository root, or on Windows
+`certutil -hashfile <path> SHA256`.
+
+    8fa56898e76e6c7e0d0a7f6c4c9e662abeeb1bdac6035a5816b9fc7cc778ccf4  ACTransmitter/local_repos/ProtocolLib.jar
+
+## What this file can and cannot tell you
+
+It gives **integrity going forward**. If the jar changes, you will know.
+
+It cannot give **authenticity looking backward**, and that limitation is
+permanent. The artifact's own manifest reads `4.8.0-SNAPSHOT-b540`, which is a
+development build off the 4.8.0 line rather than the 4.8.0 release the pom used
+to claim. The entire ProtocolLib 4.x line has since been removed from the
+upstream repository, so there is no published copy left to compare this hash
+against. Nobody can prove this file is what its author built.
+
+Treat it accordingly. If you are building this yourself, substituting your own
+ProtocolLib from a source you trust is the better option. The plugin declares
+`depend: [ ProtocolLib ]`, so at runtime the server's own installation is used
+and this jar is compile-time only, which bounds the risk to the build.
+
+The dependency is declared with `<scope>system</scope>`, which means it is
+invisible to `mvn dependency:tree`, Dependabot, OSV, Snyk, and every SBOM
+generator. Do not generate an SBOM for this project and treat it as complete.
+
+Removing this file means migrating to ProtocolLib 5.x, which is a real API
+migration rather than a version bump. Note that 5.3.0 is the last release
+supporting Java 8, so that migration does not force a JDK upgrade on its own.

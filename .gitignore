@@ -169,3 +169,10 @@ buildNumber.properties
 .classpath
 
 # End of https://www.toptal.com/developers/gitignore/api/java,intellij+all,macos,maven
+
+# Tool caches, not source.
+.repowise/
+.remember/
+.full-review/
+bin/
+FINDINGS-RESOLVED.md

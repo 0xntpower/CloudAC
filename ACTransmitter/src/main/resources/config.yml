@@ -1,0 +1,46 @@
+# ACTransmitter configuration
+#
+# This file was previously zero bytes and was never read. Every address and port
+# was a compile-time constant, which meant the project's central claim -- that
+# the ComputationServer can run on a different machine -- could not be reached
+# by any amount of configuration.
+#
+# SECURITY: leave both addresses on loopback unless you set shared-secret.
+# The plugin refuses to start with a non-loopback address and no secret, because
+# an unauthenticated verdict port lets anyone who can reach it kick any player,
+# and Minecraft UUIDs are public information.
+
+computation-server:
+  # Where the ComputationServer is listening for packet data.
+  host: 127.0.0.1
+  port: 1234
+
+verdict-listener:
+  # Where this plugin listens for detection results.
+  #
+  # Bind a specific interface. An empty value or 0.0.0.0 means every interface,
+  # which is how this port became remotely reachable in the first place.
+  bind-address: 127.0.0.1
+  port: 1212
+
+# Shared secret used to authenticate BOTH directions with HMAC-SHA256.
+#
+# Leave empty ONLY when both processes run on the same host with both ports on
+# loopback. Set it to at least 16 characters otherwise, and give the same value
+# to the ComputationServer through CLOUDAC_SHARED_SECRET.
+#
+# Generate one with:  openssl rand -base64 32
+#
+# Note that TLS is not a substitute for this. TLS without client certificates
+# authenticates the server to the client, and both of the listeners here are the
+# server, so an attacker just speaks TLS and sends the same line encrypted.
+shared-secret: ""
+
+punishment:
+  # The kill switch. Set to false to keep detecting while nobody is kicked.
+  #
+  # Toggle at runtime with /actransmitter punish off. During a false-positive
+  # incident this is the difference between a several-second outage and having
+  # to stop a process. Note that a retuned detection check is the most likely
+  # cause of such an incident.
+  enabled: true
