@@ -1,3 +1,11 @@
+// Package sys implements the CloudAC computation server: the wire protocol,
+// the per-player profile store, and the checks that run against it.
+//
+// The flow is one direction in and one direction out. A frame arrives on the
+// listener, is authenticated and parsed once into a Packet, and is handed to
+// the processors and then the checks under a single lock. Checks return
+// verdicts rather than delivering them, so nothing in the detection layer
+// knows about sockets.
 package sys
 
 import (

@@ -1,3 +1,8 @@
+// Command cserver runs the CloudAC computation server.
+//
+// It reads its configuration from the environment. See sys.LoadConfig for the
+// variables, and note that it refuses to start on a non-loopback address
+// without CLOUDAC_SHARED_SECRET set.
 package main
 
 import (

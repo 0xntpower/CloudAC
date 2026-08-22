@@ -44,7 +44,10 @@ func TestParsePacketRejectsHostileInput(t *testing.T) {
 		{"oversized field", "0|" + strings.Repeat("A", 1<<16) + "|1700000000000", "no length cap anywhere"},
 		{"nul byte", "0|" + testUUID + "\x00|1700000000000", "passed straight through"},
 		{"ansi escape", "0|\x1b[2J\x1b[1;31m" + testUUID + "|1700000000000", "reached the operator console unfiltered"},
-		{"bidi override", "0|‮gnitaehc" + testUUID + "|1700000000000", "visually reversed a log line"},
+		// Written as an escape rather than the literal character. A raw U+202E
+		// in source reverses how the rest of the line renders in an editor,
+		// which is the same trick this row exists to test for.
+		{"bidi override", "0|\u202egnitaehc" + testUUID + "|1700000000000", "visually reversed a log line"},
 	}
 
 	for _, tc := range cases {
