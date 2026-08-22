@@ -6,103 +6,136 @@
 
     <groupId>com.nort721</groupId>
     <artifactId>ACTransmitter</artifactId>
-    <version>Build-0</version>
+    <version>0.2.0</version>
 
     <name>ACTransmitter</name>
 
     <packaging>jar</packaging>
 
     <properties>
-        <java.version>1.8</java.version>
+        <!--
+          Declared explicitly. Without it Maven falls back to the platform
+          default charset for both compilation and resource filtering, so two
+          developers on different operating systems produced different
+          artifacts from identical source. Combined with streams that were
+          built without an explicit charset, the encoding of the wire protocol
+          itself depended on who ran the build.
+        -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <!--
+          release rather than the source/target pair. source/target does not
+          constrain the API surface, so a Java 8 build on a newer JDK links
+          happily against methods that do not exist on 8 and fails at runtime
+          with NoSuchMethodError. release sets source, target, and the platform
+          signature set together.
+        -->
+        <maven.compiler.release>8</maven.compiler.release>
+
+        <!-- Reproducible archive entries. -->
+        <project.build.outputTimestamp>2026-08-22T00:00:00Z</project.build.outputTimestamp>
     </properties>
 
     <build>
+        <finalName>${project.name}-${project.version}</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
+                <version>3.13.0</version>
                 <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
+                    <compilerArgs>
+                        <arg>-Xlint:all</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.2.4</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
+            <!--
+              The shade plugin was removed. It excluded provided and system
+              scope by default, and every dependency here is one or the other,
+              so it bundled nothing. Its only observable effects were applying
+              finalName, which now lives above, and renaming the compiler's
+              output to original-*.jar, which is the file that ended up
+              committed to git.
 
-                            <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <minimizeJar>false</minimizeJar>
-                            <finalName>${project.name}-${project.version}</finalName>
-                            <relocations>
-
-                            </relocations>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
+              Reintroduce it only if a genuinely bundled dependency is added,
+              and configure relocations at that point, because two plugins
+              shading the same library into one server JVM is a real conflict.
+            -->
         </plugins>
         <resources>
+            <!--
+              Filtering is narrowed to the one file that needs substitution.
+              Applying it to the whole resources directory would corrupt any
+              binary resource added later, because Maven attempts token
+              substitution on everything it filters.
+            -->
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>true</filtering>
+                <includes>
+                    <include>plugin.yml</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <excludes>
+                    <exclude>plugin.yml</exclude>
+                </excludes>
             </resource>
         </resources>
     </build>
 
-<!--    <properties>-->
-<!--        <maven.compiler.source>15</maven.compiler.source>-->
-<!--        <maven.compiler.target>15</maven.compiler.target>-->
-<!--    </properties>-->
-
     <repositories>
-
-        <!--SpigotAPI-->
         <repository>
             <id>spigotmc-repo</id>
             <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
         </repository>
-
-        <!--jitpack-->
-        <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
-        </repository>
-
     </repositories>
 
     <dependencies>
 
-        <!--Lombok-->
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>1.18.22</version>
-            <scope>provided</scope>
-        </dependency>
+        <!--
+          ProtocolLib, vendored.
 
-        <!--ProtocolLib Latest-dev-build -->
+          WARNING, and this cannot be fixed from here. The declared version used
+          to read 4.8.0, which the artifact itself denies: its manifest says
+          4.8.0-SNAPSHOT-b540, a development build off the 4.8.0 line rather
+          than the release. The version below is corrected so the pom stops
+          asserting something false.
+
+          The 4.x line has been removed from upstream entirely, so there is no
+          copy left to verify this file against. The checksum in CHECKSUMS.txt
+          gives integrity going forward, you will detect if the file changes -
+          but it can never give authenticity looking backward. Nobody can prove
+          this jar is what its author built.
+
+          system scope is also deprecated and scheduled for removal in Maven 4,
+          and it hides this dependency from dependency:tree, Dependabot, OSV,
+          and every SBOM generator. Removing it means migrating to ProtocolLib
+          5.x, which is a real API migration rather than a version bump. Note
+          that 5.3.0 is the last release supporting Java 8, so that migration
+          does NOT force a JDK upgrade on its own.
+        -->
         <dependency>
             <groupId>com.comphenix.protocol</groupId>
             <artifactId>ProtocolLib</artifactId>
-            <version>4.8.0</version>
+            <version>4.8.0-SNAPSHOT-b540</version>
             <systemPath>${project.basedir}/local_repos/ProtocolLib.jar</systemPath>
             <scope>system</scope>
         </dependency>
 
-        <!--SpigotAPI latest-->
+        <!--
+          Pinned to the exact resolved build rather than the moving SNAPSHOT
+          coordinate. 1.16.5 is end of life so nothing new is published, but
+          without a pin two developers on the same commit had no way to confirm
+          they compiled against the same API.
+        -->
         <dependency>
             <groupId>org.spigotmc</groupId>
             <artifactId>spigot-api</artifactId>
-            <version>1.16.5-R0.1-SNAPSHOT</version>
+            <version>1.16.5-R0.1-20210611.041013-99</version>
             <scope>provided</scope>
         </dependency>
 

@@ -1,0 +1,36 @@
+# Normalise line endings.
+#
+# Without this file the repository accumulated a mix of CRLF and LF in the
+# index, which had three separate consequences:
+#
+#  1. Every Go file failed `gofmt -l`, so the standard Go CI check reported all
+#     seven files as unformatted and printed whole-file diffs, burying any real
+#     formatting signal.
+#  2. The Java sender wrote lines with the platform separator, so a
+#     Windows-hosted game server sent CRLF while the Go peer stripped only the
+#     newline. A carriage return stayed welded to the final field and broke
+#     every float parse on that host, silently, because the parse error was
+#     discarded.
+#  3. Identical commits produced different bytes on different machines, which
+#     makes any build hash or artifact comparison meaningless.
+#
+# After adding this file, run once:
+#     git add --renormalize .
+# and commit the result on its own, so the mechanical churn does not
+# contaminate every later diff.
+
+* text=auto eol=lf
+
+*.go    text eol=lf
+*.java  text eol=lf
+*.xml   text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.md    text eol=lf
+*.mod   text eol=lf
+Makefile text eol=lf
+
+*.jar   binary
+*.class binary
+*.png   binary
+*.db    binary

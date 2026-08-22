@@ -1,7 +1,0 @@
-name: ACTransmitter
-version: Build-0
-api-version: 1.13
-main: com.nort721.transmitter.ACTransmitter
-author: Nort721
-description: An anticheat data transmision unit
-depend: [ ProtocolLib ]
